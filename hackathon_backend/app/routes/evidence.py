@@ -1,4 +1,3 @@
-import json
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -10,7 +9,12 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from ..extraction.file_extract import extract_text_from_file
 from ..extraction.pipeline import process_evidence
 from ..integrity import calculate_sha256
-from ..models import AnalyzeResponse, AnalyzeTextRequest, Evidence
+from ..models import (
+    AnalyzeResponse,
+    AnalyzeTextRequest,
+    Evidence,
+    TextEvidenceRequest,
+)
 from ..storage import save_evidence_metadata, save_file
 
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
@@ -23,11 +27,20 @@ router = APIRouter(prefix="/api/evidence", tags=["evidence"])
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_text(payload: AnalyzeTextRequest):
     if not payload.text.strip():
-        raise HTTPException(status_code=400, detail="Evidence text cannot be empty")
+        raise HTTPException(
+            status_code=400,
+            detail="Evidence text cannot be empty",
+        )
 
-    result = await process_evidence(payload.text, payload.evidence_source)
+    result = await process_evidence(
+        payload.text,
+        payload.evidence_source,
+    )
 
-    return {"success": True, "extracted": result}
+    return {
+        "success": True,
+        "extracted": result,
+    }
 
 
 @router.post("/analyze-file", response_model=AnalyzeResponse)
@@ -37,7 +50,10 @@ async def analyze_file(
 ):
     suffix = os.path.splitext(file.filename or "")[1]
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+    with tempfile.NamedTemporaryFile(
+        delete=False,
+        suffix=suffix,
+    ) as tmp:
         tmp.write(await file.read())
         temp_path = tmp.name
 
@@ -59,9 +75,15 @@ async def analyze_file(
             else detected_source
         )
 
-        result = await process_evidence(text, source)
+        result = await process_evidence(
+            text,
+            source,
+        )
 
-        return {"success": True, "extracted": result}
+        return {
+            "success": True,
+            "extracted": result,
+        }
 
     finally:
         try:
@@ -142,6 +164,37 @@ async def upload_evidence(file: UploadFile = File(...)):
         mime_type=file.content_type,
         size=len(content),
         storage_path=str(relative_path).replace("\\", "/"),
+        sha256=sha256,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    save_evidence_metadata(evidence)
+
+    return {
+        "success": True,
+        "evidence": evidence,
+    }
+
+
+@router.post("/text")
+async def create_text_evidence(payload: TextEvidenceRequest):
+    """Create an Evidence object from text without running extraction."""
+
+    if not payload.content.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Evidence text cannot be empty",
+        )
+
+    evidence_id = f"ev_{uuid4().hex}"
+    sha256 = calculate_sha256(payload.content)
+
+    evidence = Evidence(
+        id=evidence_id,
+        type="text",
+        source=payload.source,
+        size=len(payload.content.encode("utf-8")),
+        content=payload.content,
         sha256=sha256,
         created_at=datetime.now(timezone.utc),
     )
