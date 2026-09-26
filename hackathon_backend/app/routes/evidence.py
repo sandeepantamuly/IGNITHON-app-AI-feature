@@ -2,6 +2,7 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -14,6 +15,7 @@ from ..models import (
     AnalyzeTextRequest,
     Evidence,
     TextEvidenceRequest,
+    UrlEvidenceRequest,
 )
 from ..storage import save_evidence_metadata, save_file
 
@@ -195,6 +197,46 @@ async def create_text_evidence(payload: TextEvidenceRequest):
         source=payload.source,
         size=len(payload.content.encode("utf-8")),
         content=payload.content,
+        sha256=sha256,
+        created_at=datetime.now(timezone.utc),
+    )
+
+    save_evidence_metadata(evidence)
+
+    return {
+        "success": True,
+        "evidence": evidence,
+    }
+
+
+@router.post("/url")
+async def create_url_evidence(payload: UrlEvidenceRequest):
+    """Create URL evidence without visiting or downloading the URL."""
+
+    url = payload.url.strip()
+
+    if not url:
+        raise HTTPException(
+            status_code=400,
+            detail="URL cannot be empty",
+        )
+
+    parsed = urlparse(url)
+
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid URL. Only HTTP and HTTPS URLs are supported.",
+        )
+
+    evidence_id = f"ev_{uuid4().hex}"
+    sha256 = calculate_sha256(url)
+
+    evidence = Evidence(
+        id=evidence_id,
+        type="url",
+        source="url",
+        content=url,
         sha256=sha256,
         created_at=datetime.now(timezone.utc),
     )
