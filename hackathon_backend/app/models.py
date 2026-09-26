@@ -45,6 +45,10 @@ class TextEvidenceRequest(BaseModel):
     source: Literal["chat", "text"] = "chat"
 
 
+class UrlEvidenceRequest(BaseModel):
+    url: str
+
+
 class Evidence(BaseModel):
     """
     Normalized evidence object produced by the ingestion layer.
