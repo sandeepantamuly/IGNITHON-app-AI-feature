@@ -40,6 +40,11 @@ class AnalyzeResponse(BaseModel):
     extracted: ExtractionResult
 
 
+class TextEvidenceRequest(BaseModel):
+    content: str
+    source: Literal["chat", "text"] = "chat"
+
+
 class Evidence(BaseModel):
     """
     Normalized evidence object produced by the ingestion layer.
