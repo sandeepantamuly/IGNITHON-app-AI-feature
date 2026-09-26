@@ -1,4 +1,6 @@
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -36,3 +38,24 @@ class AnalyzeTextRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     success: bool
     extracted: ExtractionResult
+
+
+class Evidence(BaseModel):
+    """
+    Normalized evidence object produced by the ingestion layer.
+
+    Binary file contents are stored on disk rather than inside this model.
+    """
+
+    id: str
+    type: Literal["image", "pdf", "docx", "text", "url", "transaction"]
+    source: Literal["upload", "chat", "url", "transaction"]
+
+    filename: Optional[str] = None
+    mime_type: Optional[str] = None
+    size: Optional[int] = None
+    content: Optional[str] = None
+    storage_path: Optional[str] = None
+
+    sha256: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
