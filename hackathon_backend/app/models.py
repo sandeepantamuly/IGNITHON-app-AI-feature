@@ -49,6 +49,15 @@ class UrlEvidenceRequest(BaseModel):
     url: str
 
 
+class TransactionEvidenceRequest(BaseModel):
+    amount: float
+    currency: str
+    transaction_id: str
+    payment_method: str
+    recipient: str
+    timestamp: str
+
+
 class Evidence(BaseModel):
     """
     Normalized evidence object produced by the ingestion layer.
